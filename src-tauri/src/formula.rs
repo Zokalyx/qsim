@@ -1,7 +1,7 @@
 use nom::{branch, character, combinator, multi, number, IResult};
 use std::collections::HashMap;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum Operator {
     Addition,
     Subtraction,
@@ -101,7 +101,7 @@ impl Formula {
         if rest != "" {
             return Err("Invalid character detected".into());
         }
-        let mut root_scope = create_global_scope(tokens)?;
+        let root_scope = implicit_multiplication(create_global_scope(tokens)?);
         let root_node = create_sum(root_scope, true)?;  
         Ok(Self { root: root_node })
     }
@@ -115,7 +115,7 @@ impl Formula {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum Token {
     Value(f32),
     Variable(char),
@@ -125,7 +125,7 @@ enum Token {
     Whitespace,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum ScopeElement {
     Token(Token),
     InnerScope(Vec<ScopeElement>),
@@ -201,6 +201,9 @@ fn create_inner_scope(scope_elements: Vec<ScopeElement>) -> Result<ScopeElement,
             if let ScopeElement::Token(Token::OpeningBracket) = scope_element {
                 depth += 1;
             } else {
+                if let ScopeElement::Token(Token::ClosingBracket) = scope_element {
+                    return Err("Unmatched brackets".into())
+                }
                 local_scope.push(scope_element);
             }
         } else {
@@ -213,6 +216,9 @@ fn create_inner_scope(scope_elements: Vec<ScopeElement>) -> Result<ScopeElement,
                     inner_scope.push(scope_element);
                 }
             } else {
+                if let ScopeElement::Token(Token::OpeningBracket) = scope_element {
+                    depth += 1;
+                }
                 inner_scope.push(scope_element);
             }
         }
@@ -223,6 +229,51 @@ fn create_inner_scope(scope_elements: Vec<ScopeElement>) -> Result<ScopeElement,
     } else {
         Ok(ScopeElement::InnerScope(local_scope))
     }
+}
+
+/// Inserts implicit multiplication symbols
+fn implicit_multiplication(scope: Vec<ScopeElement>) -> Vec<ScopeElement> {
+    let mut new_scope = vec![];
+    let mut last = None;
+
+    for (i, scope_element) in scope.clone().into_iter().enumerate() {
+        if let Some(last_scope_element) = last {
+            if let ScopeElement::Token(Token::Value(_) | Token::Variable(_)) | ScopeElement::InnerScope(_) = last_scope_element {
+                if let ScopeElement::Token(Token::Value(_) | Token::Variable(_)) | ScopeElement::InnerScope(_) = scope_element {
+                    let mut next_is_exponentiation = false;
+                    for next_scope_element in &scope[i+1..] {
+                        if let ScopeElement::Token(Token::Operator(Operator::Exponentiation)) = next_scope_element {
+                            next_is_exponentiation = true;
+                            break;
+                        }
+                    }
+                    if next_is_exponentiation {
+                        new_scope.push(last_scope_element);
+                        new_scope.push(ScopeElement::Token(Token::Operator(Operator::Multiplication)));
+                        last = Some(scope_element);
+                    } else {
+                        let inner_scope = ScopeElement::InnerScope(vec![
+                        last_scope_element, ScopeElement::Token(Token::Operator(Operator::Multiplication)), scope_element]);
+                        last = Some(inner_scope);
+                    }
+                } else {
+                    new_scope.push(last_scope_element);
+                    last = Some(scope_element);
+                }
+            } else {
+                new_scope.push(last_scope_element);
+                last = Some(scope_element);
+            }
+        } else {
+            last = Some(scope_element);
+        }
+    }
+
+    if let Some(scope_element) = last {
+        new_scope.push(scope_element);
+    }
+
+    new_scope
 }
 
 fn create_sum(mut scope: Vec<ScopeElement>, reverse: bool) -> Result<Node, String> {
@@ -255,11 +306,10 @@ fn create_sum(mut scope: Vec<ScopeElement>, reverse: bool) -> Result<Node, Strin
         Ok(right)
     } else {
         if left_scope.is_empty() {
-            Err("Trailing operator".into())
-        } else {
-            let left = create_sum(left_scope, false)?;
-            Ok(Node::Operation(Operation::new(operator.unwrap(), left, right)))
+            left_scope.push(ScopeElement::Token(Token::Value(0.0)));
         }
+        let left = create_sum(left_scope, false)?;
+        Ok(Node::Operation(Operation::new(operator.unwrap(), left, right)))
     }
 }
 
@@ -341,20 +391,3 @@ fn create_exp(scope: Vec<ScopeElement>) -> Result<Node, String> {
         }
     }
 }
-
-/*fn pemdas(scope: Vec<ScopeElement>) -> Result<Node, String> {
-    let mut scope = scope.into_iter();
-    let last = scope.next().ok_or_else(|| String::from())?;
-
-    while let Some(scope_element) = scope.next() {
-        match last {
-            ScopeElement::InnerScope(inner_scope) => panic!(),
-            ScopeElement::Token(token) => match token {
-
-            }
-        }
-    }
-
-    Err(())
-}
-*/
