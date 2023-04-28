@@ -102,9 +102,7 @@ impl Formula {
             return Err("Invalid character detected".into());
         }
         let mut root_scope = create_global_scope(tokens)?;
-        // Start from the end to respect multiple asymmetric operations (subtraction, division)
-        root_scope.reverse();
-        let root_node = create_sum(root_scope)?;  
+        let root_node = create_sum(root_scope, true)?;  
         Ok(Self { root: root_node })
     }
 
@@ -227,11 +225,12 @@ fn create_inner_scope(scope_elements: Vec<ScopeElement>) -> Result<ScopeElement,
     }
 }
 
-fn create_sum(scope: Vec<ScopeElement>) -> Result<Node, String> {
+fn create_sum(mut scope: Vec<ScopeElement>, reverse: bool) -> Result<Node, String> {
     let mut left_scope = vec![];
     let mut right_scope = vec![];
     let mut operator = None;
 
+    if reverse { scope.reverse(); }
     for scope_element in scope {
         if operator.is_none() {
             match scope_element {
@@ -258,7 +257,7 @@ fn create_sum(scope: Vec<ScopeElement>) -> Result<Node, String> {
         if left_scope.is_empty() {
             Err("Trailing operator".into())
         } else {
-            let left = create_sum(left_scope)?;
+            let left = create_sum(left_scope, false)?;
             Ok(Node::Operation(Operation::new(operator.unwrap(), left, right)))
         }
     }
@@ -319,11 +318,10 @@ fn create_exp(scope: Vec<ScopeElement>) -> Result<Node, String> {
             left_scope.push(scope_element);
         }
     }
-
     let right = right_scope
         .into_iter()
         .filter_map(|scope_element| match scope_element {
-            ScopeElement::InnerScope(inner_scope) => None,
+            ScopeElement::InnerScope(inner_scope) => create_sum(inner_scope, true).ok(),
             ScopeElement::Token(token) => match token {
                 Token::Value(value) => Some(Node::Value(value)),
                 Token::Variable(variable) => Some(Node::Variable(variable)),
