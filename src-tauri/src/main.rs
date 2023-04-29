@@ -5,6 +5,7 @@
 
 use serde::{Deserialize, Serialize};
 mod formula;
+mod linear;
 
 #[derive(Deserialize, Serialize)]
 struct Datapoint {
