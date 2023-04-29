@@ -241,9 +241,14 @@ fn implicit_multiplication(scope: Vec<ScopeElement>) -> Vec<ScopeElement> {
             if let ScopeElement::Token(Token::Value(_) | Token::Variable(_)) | ScopeElement::InnerScope(_) = last_scope_element {
                 if let ScopeElement::Token(Token::Value(_) | Token::Variable(_)) | ScopeElement::InnerScope(_) = scope_element {
                     let mut next_is_exponentiation = false;
+                    // yuck
                     for next_scope_element in &scope[i+1..] {
                         if let ScopeElement::Token(Token::Operator(Operator::Exponentiation)) = next_scope_element {
                             next_is_exponentiation = true;
+                            break;
+                        } else if let ScopeElement::Token(Token::Whitespace) = next_scope_element {
+                            continue;
+                        } else {
                             break;
                         }
                     }
@@ -253,7 +258,7 @@ fn implicit_multiplication(scope: Vec<ScopeElement>) -> Vec<ScopeElement> {
                         last = Some(scope_element);
                     } else {
                         let inner_scope = ScopeElement::InnerScope(vec![
-                        last_scope_element, ScopeElement::Token(Token::Operator(Operator::Multiplication)), scope_element]);
+                            last_scope_element, ScopeElement::Token(Token::Operator(Operator::Multiplication)), scope_element]);
                         last = Some(inner_scope);
                     }
                 } else {

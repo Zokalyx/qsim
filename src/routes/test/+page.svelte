@@ -1,6 +1,10 @@
 <script lang="ts">
     import { invoke } from '@tauri-apps/api/tauri'
 
+    // Todo: make responsive
+    const WIDTH = 700
+    const HEIGHT = 300
+
     enum PotentialMode {
         Drawing,
         Formula,   
@@ -54,18 +58,41 @@
         return "M " + datapoints.map((datapoint) => `${datapoint.x} ${datapoint.y}`).join(" ")
     }
 
+    function fit_to_screen(datapoints: Datapoint[]) {
+        // maps selected bounds to screen size
+        let left = bounds.position.min  // -> 0
+        let right = bounds.position.max  // -> WIDTH
+        // "Slope" of Width / (right - left)
+        // "Root" at left
+        // Result: (x - left) * Width / (right - left)
+
+        let bottom = bounds.amplitude.min  // -> HEIGHT
+        let top = bounds.amplitude.max  // --> 0
+        // "Slope" of -Height / (right - left)
+        // "Root" at top
+        // Result: - (x - top) * Height / (right - left)
+        
+        datapoints.forEach(datapoint => {
+            datapoint.x = (datapoint.x - left) * WIDTH / (right - left)
+            datapoint.y = -(datapoint.y - top) * HEIGHT / (right - left)
+        })
+
+        return datapoints
+    }
+
     async function validate_formula() {
         potential.formula_error = await invoke("formula_error", { formula: potential.formula })
     }
 
     async function compute_formula() {
-        potential.datapoints = (await invoke(
+        let raw_data = (await invoke(
             "compute_formula", { 
                 formula: potential.formula,
                 start: bounds.position.min,
                 end: bounds.position.max,
                 resolution: 100,
             }) as Datapoints).values
+        potential.datapoints = fit_to_screen(raw_data)
     }
 </script>
 
@@ -115,7 +142,7 @@ to
 <h1>
     Graph
 </h1>
-<svg height="200" width="500">
+<svg height="{HEIGHT}" width="{WIDTH}">
     {#if potential.datapoints}
     <path fill="none" stroke="red" d={path(potential.datapoints)}/>
     {/if}
