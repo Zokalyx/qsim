@@ -32,6 +32,16 @@
         formula_error: "",
         datapoints: null,
     })
+
+    async function simulate() {
+        await invoke("simulate", { 
+            potential: $potential.formula,
+            wavefunction: $wavefunction.formula,
+            start: bounds.position.min,
+            end: bounds.position.max,
+            resolution: 100,
+        })
+    }
 </script>
 
 <h1>
@@ -51,3 +61,7 @@ to
 <Formula fn={wavefunction} bounds={bounds} />
 
 <Graph potential={potential} wavefunction={wavefunction} bounds={bounds} />
+
+<button on:click={simulate}>
+    Simulate
+</button>

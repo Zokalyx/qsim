@@ -1,5 +1,6 @@
 use nom::{branch, character, combinator, multi, number, IResult};
 use std::collections::HashMap;
+use super::complex::Complex;
 
 #[derive(Debug, Clone)]
 enum Operator {
@@ -25,7 +26,7 @@ impl Operation {
         }
     }
 
-    fn evaluate(&self, input: f32) -> Result<f32, String> {
+    fn evaluate(&self, input: Complex) -> Result<Complex, String> {
         let left = self.left.evaluate(input)?;
         let right = self.right.evaluate(input)?;
 
@@ -34,7 +35,7 @@ impl Operation {
             Operator::Subtraction => Ok(left - right),
             Operator::Multiplication => Ok(left * right),
             Operator::Division => {
-                if right == 0.0 {
+                if right.is_zero() {
                     Err("Division by zero".into())
                 } else {
                     Ok(left / right)
@@ -44,7 +45,7 @@ impl Operation {
         }
     }
 
-    fn evaluate_multivariable(&self, variables: &HashMap<char, f32>) -> Result<f32, String> {
+    fn evaluate_multivariable(&self, variables: &HashMap<char, Complex>) -> Result<Complex, String> {
         let left = self.left.evaluate_multivariable(variables)?;
         let right = self.right.evaluate_multivariable(variables)?;
 
@@ -53,7 +54,7 @@ impl Operation {
             Operator::Subtraction => Ok(left - right),
             Operator::Multiplication => Ok(left * right),
             Operator::Division => {
-                if right == 0.0 {
+                if right.is_zero() {
                     Err("Division by zero".into())
                 } else {
                     Ok(left / right)
@@ -71,17 +72,17 @@ enum Node {
     Operation(Operation),
 }
 impl Node {
-    fn evaluate(&self, input: f32) -> Result<f32, String> {
+    fn evaluate(&self, input: Complex) -> Result<Complex, String> {
         match &self {
-            Node::Value(value) => Ok(*value),
+            Node::Value(value) => Ok(Complex::from(*value)),
             Node::Variable(_) => Ok(input),
             Node::Operation(operation) => operation.evaluate(input),
         }
     }
 
-    fn evaluate_multivariable(&self, variables: &HashMap<char, f32>) -> Result<f32, String> {
+    fn evaluate_multivariable(&self, variables: &HashMap<char, Complex>) -> Result<Complex, String> {
         match &self {
-            Node::Value(value) => Ok(*value),
+            Node::Value(value) => Ok(Complex::from(*value)),
             Node::Variable(variable) => match variables.get(variable) {
                 None => Err(format!("Missing value for variable {}", variable)),
                 Some(value) => Ok(*value),
@@ -106,11 +107,25 @@ impl Formula {
         Ok(Self { root: root_node })
     }
 
-    pub fn evaluate(&self, input: f32) -> Result<f32, String> {
+    pub fn get_vector(&self, start: f32, end: f32, length: u32) -> Vec<Complex> {
+        let step = (end - start) / (length as f32);
+        let mut values = vec![];
+        for i in 0..length {
+            let x = start + (i as f32) * step;
+            values.push(self.evaluate(x.into()).unwrap_or(Complex::zero()))
+        }
+        values
+    }
+
+    pub fn adjoin(self, other: Formula, operator: Operator) -> Formula {
+        Self { root: Node::Operation(Operation::new(operator, self.root, other.root)) }
+    }
+
+    pub fn evaluate(&self, input: Complex) -> Result<Complex, String> {
         self.root.evaluate(input)
     }
 
-    pub fn evaluate_multivariable(&self, variables: &HashMap<char, f32>) -> Result<f32, String> {
+    pub fn evaluate_multivariable(&self, variables: &HashMap<char, Complex>) -> Result<Complex, String> {
         self.root.evaluate_multivariable(variables)
     }
 }
