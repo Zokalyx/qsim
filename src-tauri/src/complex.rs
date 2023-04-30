@@ -3,12 +3,16 @@ use std::f32::consts::E;
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub struct Complex {
-    real: f32,
-    imag: f32,
+    pub real: f32,
+    pub imag: f32,
 }
 impl Complex {
     pub fn zero() -> Self {
         Self { real: 0.0, imag: 0.0 }
+    }
+
+    pub fn iunit() -> Self {
+        Self { real: 0.0, imag: 1.0 }
     }
 
     pub fn new(real: f32, imag: f32) -> Self {
@@ -20,6 +24,10 @@ impl Complex {
             real: modulus * angle.cos(),
             imag: modulus * angle.sin()
         }
+    }
+
+    pub fn times_i(&self) -> Self {
+        Self { real: -self.imag, imag: self.real }
     }
 
     pub fn modulus_squared(&self) -> f32 {
@@ -37,17 +45,69 @@ impl Complex {
         }
     }
 
+    pub fn inverse(&self) -> Complex {
+        self.conjugate() / self.conjugate().modulus_squared()
+    }
+
     pub fn angle_radians(&self) -> f32 {
         self.imag.atan2(self.real)
     }
 
-    pub fn powf(&self, exponent: Complex) -> Complex {
+    pub fn sqrt(&self) -> Complex {
+        self.powf(&0.5.into())
+    }
+
+    pub fn powf(&self, exponent: &Complex) -> Complex {
         if self.modulus_squared() == 0.0 {
             return Complex::zero()
         }
         let angle = self.angle_radians() * exponent.real + self.modulus().ln() * exponent.imag;
         let modulus = self.modulus().powf(exponent.real) * E.powf(-self.angle_radians() * exponent.imag);
         Self::from_polar_radians(modulus, angle)
+    }
+
+    pub fn cos(&self) -> Complex {
+        Complex {
+            real: self.real.cos() * self.imag.cosh(),
+            imag: - self.real.sin() * self.imag.sinh()
+        }
+    }
+
+    pub fn sin(&self) -> Complex {
+        Complex {
+            real: self.real.sin() * self.imag.cosh(),
+            imag: self.real.cos() * self.imag.sinh()
+        }
+    }
+
+    pub fn tan(&self) -> Complex {
+        self.sin() / self.cos()
+    }
+
+    pub fn step(&self) -> Complex {
+        Complex {
+            real: if self.real > 0.0 { 1.0 } else { 0.0 },
+            imag: if self.imag > 0.0 { 1.0 } else { 0.0 },
+        }
+    }
+
+    pub fn delta(&self) -> Complex {
+        if self.is_zero() {
+            Complex::from(1.0)
+        } else {
+            Complex::zero()
+        }
+    }
+
+    pub fn exp(&self) -> Complex {
+        Complex::from(std::f32::consts::E).powf(self)
+    }
+
+    pub fn ln(&self) -> Complex {
+        Complex {
+            real: self.modulus().ln(),
+            imag: self.angle_radians()
+        }
     }
 
     pub fn is_zero(&self) -> bool {

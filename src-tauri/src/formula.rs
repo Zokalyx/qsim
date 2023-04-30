@@ -1,14 +1,62 @@
-use nom::{branch, character, combinator, multi, number, IResult};
-use std::collections::HashMap;
 use super::complex::Complex;
+use nom::{branch, character, combinator, multi, number, IResult, bytes};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
-enum Operator {
+pub enum Operator {
     Addition,
     Subtraction,
     Multiplication,
     Division,
     Exponentiation,
+}
+#[derive(Debug, Clone)]
+enum Function {
+    Cos,
+    Sin,
+    Ln,
+    Sqrt,
+    Tan,
+    Step,
+    // Delta,
+    Exp,
+}
+
+#[derive(Debug)]
+struct FunctionCall {
+    function: Function,
+    argument: Box<Node>
+}
+impl FunctionCall {
+    fn evaluate(&self, input: Complex) -> Result<Complex, String> {
+        let arg = self.argument.evaluate(input)?;
+        match self.function {
+            Function::Cos => Ok(arg.cos()),
+            Function::Sin => Ok(arg.sin()),
+            Function::Ln => Ok(arg.ln()),
+            Function::Exp => Ok(arg.exp()),
+            // Function::Delta => Ok(arg.delta()),
+            Function::Sqrt => Ok(arg.sqrt()),
+            Function::Tan => Ok(arg.tan()),
+            Function::Step => Ok(arg.step()),
+            _ => Err("Invalid function".into())
+        }
+    }
+
+    fn evaluate_multivariable(&self, variables: &HashMap<char, Complex>) -> Result<Complex, String> {
+        let arg = self.argument.evaluate_multivariable(variables)?;
+        match self.function {
+            Function::Cos => Ok(arg.cos()),
+            Function::Sin => Ok(arg.sin()),
+            Function::Ln => Ok(arg.ln()),
+            Function::Exp => Ok(arg.exp()),
+            // Function::Delta => Ok(arg.delta()),
+            Function::Sqrt => Ok(arg.sqrt()),
+            Function::Tan => Ok(arg.tan()),
+            Function::Step => Ok(arg.step()),
+            _ => Err("Invalid function".into())
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -41,11 +89,14 @@ impl Operation {
                     Ok(left / right)
                 }
             }
-            Operator::Exponentiation => Ok(left.powf(right)),
+            Operator::Exponentiation => Ok(left.powf(&right)),
         }
     }
 
-    fn evaluate_multivariable(&self, variables: &HashMap<char, Complex>) -> Result<Complex, String> {
+    fn evaluate_multivariable(
+        &self,
+        variables: &HashMap<char, Complex>,
+    ) -> Result<Complex, String> {
         let left = self.left.evaluate_multivariable(variables)?;
         let right = self.right.evaluate_multivariable(variables)?;
 
@@ -60,7 +111,7 @@ impl Operation {
                     Ok(left / right)
                 }
             }
-            Operator::Exponentiation => Ok(left.powf(right)),
+            Operator::Exponentiation => Ok(left.powf(&right)),
         }
     }
 }
@@ -70,6 +121,7 @@ enum Node {
     Value(f32),
     Variable(char),
     Operation(Operation),
+    Function(FunctionCall),
 }
 impl Node {
     fn evaluate(&self, input: Complex) -> Result<Complex, String> {
@@ -77,10 +129,14 @@ impl Node {
             Node::Value(value) => Ok(Complex::from(*value)),
             Node::Variable(_) => Ok(input),
             Node::Operation(operation) => operation.evaluate(input),
+            Node::Function(function) => function.evaluate(input),
         }
     }
 
-    fn evaluate_multivariable(&self, variables: &HashMap<char, Complex>) -> Result<Complex, String> {
+    fn evaluate_multivariable(
+        &self,
+        variables: &HashMap<char, Complex>,
+    ) -> Result<Complex, String> {
         match &self {
             Node::Value(value) => Ok(Complex::from(*value)),
             Node::Variable(variable) => match variables.get(variable) {
@@ -88,6 +144,7 @@ impl Node {
                 Some(value) => Ok(*value),
             },
             Node::Operation(operation) => operation.evaluate_multivariable(variables),
+            Node::Function(function) => function.evaluate_multivariable(variables),
         }
     }
 }
@@ -97,13 +154,32 @@ pub struct Formula {
     root: Node,
 }
 impl Formula {
+    pub fn complex_phase(k: f32) -> Self {
+        Self {
+            root: Node::Operation(Operation {
+                operator: Operator::Exponentiation,
+                left: Box::new(Node::Value(std::f32::consts::E)),
+                right: Box::new(Node::Operation(Operation {
+                    operator: Operator::Multiplication,
+                    left: Box::new(Node::Variable('i')),
+                    right: Box::new(Node::Operation(Operation {
+                        operator: Operator::Multiplication,
+                        left: Box::new(Node::Value(k)),
+                        right: Box::new(Node::Variable('x'))
+                    })),
+                })),
+            }),
+        }
+    }
+
     pub fn new(formula: &str) -> Result<Self, String> {
-        let (rest, tokens) = multi::many0(token)(formula).map_err(|_| String::from("Parsing error"))?;
+        let (rest, tokens) =
+            multi::many0(token)(formula).map_err(|_| String::from("Parsing error"))?;
         if rest != "" {
             return Err("Invalid character detected".into());
         }
         let root_scope = implicit_multiplication(create_global_scope(tokens)?);
-        let root_node = create_sum(root_scope, true)?;  
+        let root_node = create_sum(root_scope, true)?;
         Ok(Self { root: root_node })
     }
 
@@ -112,20 +188,30 @@ impl Formula {
         let mut values = vec![];
         for i in 0..length {
             let x = start + (i as f32) * step;
-            values.push(self.evaluate(x.into()).unwrap_or(Complex::zero()))
+            let j = Complex::iunit();
+            let mut variables = HashMap::from([
+                ('x', Complex::from(x)),
+                ('i', j)
+            ]);
+            values.push(self.evaluate_multivariable(&variables).unwrap_or(Complex::zero()))
         }
         values
     }
 
     pub fn adjoin(self, other: Formula, operator: Operator) -> Formula {
-        Self { root: Node::Operation(Operation::new(operator, self.root, other.root)) }
+        Self {
+            root: Node::Operation(Operation::new(operator, self.root, other.root)),
+        }
     }
 
     pub fn evaluate(&self, input: Complex) -> Result<Complex, String> {
         self.root.evaluate(input)
     }
 
-    pub fn evaluate_multivariable(&self, variables: &HashMap<char, Complex>) -> Result<Complex, String> {
+    pub fn evaluate_multivariable(
+        &self,
+        variables: &HashMap<char, Complex>,
+    ) -> Result<Complex, String> {
         self.root.evaluate_multivariable(variables)
     }
 }
@@ -135,6 +221,7 @@ enum Token {
     Value(f32),
     Variable(char),
     Operator(Operator),
+    Function(Function),
     OpeningBracket,
     ClosingBracket,
     Whitespace,
@@ -148,12 +235,41 @@ enum ScopeElement {
 impl ScopeElement {
     fn get_inner_scope(self) -> Result<Vec<Self>, String> {
         match self {
-            ScopeElement::Token(_) => Err("This scope element is a token, not an inner scope".into()),
+            ScopeElement::Token(_) => {
+                Err("This scope element is a token, not an inner scope".into())
+            }
             ScopeElement::InnerScope(inner_scope) => Ok(inner_scope),
         }
     }
 }
 
+fn function(input: &str) -> IResult<&str, Token> {
+    let (rest, function) = branch::alt((
+        bytes::complete::tag("cos"),
+        bytes::complete::tag("sin"),
+        bytes::complete::tag("sqrt"),
+        bytes::complete::tag("ln"),
+        bytes::complete::tag("log"),
+        bytes::complete::tag("tan"),
+        bytes::complete::tag("sen"),
+        bytes::complete::tag("u"),
+        // bytes::complete::tag("d"),
+        bytes::complete::tag("exp")))(input)?;
+
+    let function = match function {
+        "cos" => Function::Cos,
+        "sin" | "sen" => Function::Sin,
+        "sqrt" => Function::Sqrt,
+        "ln" | "log" => Function::Ln,
+        "tan" => Function::Tan,
+        "u" => Function::Step,
+        // "d" => Function::Delta,
+        "exp" => Function::Exp,
+        _ => unreachable!()
+    };
+
+    Ok((rest, Token::Function(function)))
+}
 fn bracket(input: &str) -> IResult<&str, Token> {
     let (rest, bracket) = character::complete::one_of("()")(input)?;
     let token = match bracket {
@@ -190,7 +306,7 @@ fn whitespace(input: &str) -> IResult<&str, Token> {
 }
 
 fn token(input: &str) -> IResult<&str, Token> {
-    branch::alt((bracket, operator, variable, value, whitespace))(input)
+    branch::alt((function, bracket, operator, variable, value, whitespace))(input)
 }
 
 fn create_global_scope(tokens: Vec<Token>) -> Result<Vec<ScopeElement>, String> {
@@ -217,7 +333,7 @@ fn create_inner_scope(scope_elements: Vec<ScopeElement>) -> Result<ScopeElement,
                 depth += 1;
             } else {
                 if let ScopeElement::Token(Token::ClosingBracket) = scope_element {
-                    return Err("Unmatched brackets".into())
+                    return Err("Unmatched brackets".into());
                 }
                 local_scope.push(scope_element);
             }
@@ -253,12 +369,18 @@ fn implicit_multiplication(scope: Vec<ScopeElement>) -> Vec<ScopeElement> {
 
     for (i, scope_element) in scope.clone().into_iter().enumerate() {
         if let Some(last_scope_element) = last {
-            if let ScopeElement::Token(Token::Value(_) | Token::Variable(_)) | ScopeElement::InnerScope(_) = last_scope_element {
-                if let ScopeElement::Token(Token::Value(_) | Token::Variable(_)) | ScopeElement::InnerScope(_) = scope_element {
+            if let ScopeElement::Token(Token::Value(_) | Token::Variable(_))
+            | ScopeElement::InnerScope(_) = last_scope_element
+            {
+                if let ScopeElement::Token(Token::Value(_) | Token::Variable(_))
+                | ScopeElement::InnerScope(_) = scope_element
+                {
                     let mut next_is_exponentiation = false;
                     // yuck
-                    for next_scope_element in &scope[i+1..] {
-                        if let ScopeElement::Token(Token::Operator(Operator::Exponentiation)) = next_scope_element {
+                    for next_scope_element in &scope[i + 1..] {
+                        if let ScopeElement::Token(Token::Operator(Operator::Exponentiation)) =
+                            next_scope_element
+                        {
                             next_is_exponentiation = true;
                             break;
                         } else if let ScopeElement::Token(Token::Whitespace) = next_scope_element {
@@ -269,19 +391,32 @@ fn implicit_multiplication(scope: Vec<ScopeElement>) -> Vec<ScopeElement> {
                     }
                     if next_is_exponentiation {
                         new_scope.push(last_scope_element);
-                        new_scope.push(ScopeElement::Token(Token::Operator(Operator::Multiplication)));
+                        new_scope.push(ScopeElement::Token(Token::Operator(
+                            Operator::Multiplication,
+                        )));
                         last = Some(scope_element);
                     } else {
                         let inner_scope = ScopeElement::InnerScope(vec![
-                            last_scope_element, ScopeElement::Token(Token::Operator(Operator::Multiplication)), scope_element]);
+                            last_scope_element,
+                            ScopeElement::Token(Token::Operator(Operator::Multiplication)),
+                            scope_element,
+                        ]);
                         last = Some(inner_scope);
                     }
                 } else {
-                    new_scope.push(last_scope_element);
+                    if let ScopeElement::Token(Token::Whitespace) = last_scope_element {
+                    
+                    } else {
+                        new_scope.push(last_scope_element);
+                    }
                     last = Some(scope_element);
                 }
             } else {
-                new_scope.push(last_scope_element);
+                if let ScopeElement::Token(Token::Whitespace) = last_scope_element {
+
+                } else {
+                    new_scope.push(last_scope_element);
+                }
                 last = Some(scope_element);
             }
         } else {
@@ -294,6 +429,16 @@ fn implicit_multiplication(scope: Vec<ScopeElement>) -> Vec<ScopeElement> {
     }
 
     new_scope
+
+    /*
+    new_scope.into_iter().filter(|scope_element|
+        if let ScopeElement::Token(Token::Whitespace) = scope_element {
+            false
+        } else {
+            true
+        }
+    ).collect::<Vec<ScopeElement>>()
+    */
 }
 
 fn create_sum(mut scope: Vec<ScopeElement>, reverse: bool) -> Result<Node, String> {
@@ -301,16 +446,20 @@ fn create_sum(mut scope: Vec<ScopeElement>, reverse: bool) -> Result<Node, Strin
     let mut right_scope = vec![];
     let mut operator = None;
 
-    if reverse { scope.reverse(); }
+    if reverse {
+        scope.reverse();
+    }
     for scope_element in scope {
         if operator.is_none() {
             match scope_element {
                 ScopeElement::InnerScope(_) => right_scope.push(scope_element),
                 ScopeElement::Token(ref token) => match token {
                     Token::Operator(Operator::Addition) => operator = Some(Operator::Addition),
-                    Token::Operator(Operator::Subtraction) => operator = Some(Operator::Subtraction),
+                    Token::Operator(Operator::Subtraction) => {
+                        operator = Some(Operator::Subtraction)
+                    }
                     _ => right_scope.push(scope_element),
-                }
+                },
             }
         } else {
             left_scope.push(scope_element);
@@ -329,7 +478,11 @@ fn create_sum(mut scope: Vec<ScopeElement>, reverse: bool) -> Result<Node, Strin
             left_scope.push(ScopeElement::Token(Token::Value(0.0)));
         }
         let left = create_sum(left_scope, false)?;
-        Ok(Node::Operation(Operation::new(operator.unwrap(), left, right)))
+        Ok(Node::Operation(Operation::new(
+            operator.unwrap(),
+            left,
+            right,
+        )))
     }
 }
 
@@ -343,10 +496,12 @@ fn create_mult(scope: Vec<ScopeElement>) -> Result<Node, String> {
             match scope_element {
                 ScopeElement::InnerScope(_) => right_scope.push(scope_element),
                 ScopeElement::Token(ref token) => match token {
-                    Token::Operator(Operator::Multiplication) => operator = Some(Operator::Multiplication),
+                    Token::Operator(Operator::Multiplication) => {
+                        operator = Some(Operator::Multiplication)
+                    }
                     Token::Operator(Operator::Division) => operator = Some(Operator::Division),
                     _ => right_scope.push(scope_element),
-                }
+                },
             }
         } else {
             left_scope.push(scope_element);
@@ -365,7 +520,11 @@ fn create_mult(scope: Vec<ScopeElement>) -> Result<Node, String> {
             Err("Trailing operator".into())
         } else {
             let left = create_mult(left_scope)?;
-            Ok(Node::Operation(Operation::new(operator.unwrap(), left, right)))
+            Ok(Node::Operation(Operation::new(
+                operator.unwrap(),
+                left,
+                right,
+            )))
         }
     }
 }
@@ -380,26 +539,17 @@ fn create_exp(scope: Vec<ScopeElement>) -> Result<Node, String> {
             match scope_element {
                 ScopeElement::InnerScope(_) => right_scope.push(scope_element),
                 ScopeElement::Token(ref token) => match token {
-                    Token::Operator(Operator::Exponentiation) => operator = Some(Operator::Exponentiation),
+                    Token::Operator(Operator::Exponentiation) => {
+                        operator = Some(Operator::Exponentiation)
+                    }
                     _ => right_scope.push(scope_element),
-                }
+                },
             }
         } else {
             left_scope.push(scope_element);
         }
     }
-    let right = right_scope
-        .into_iter()
-        .filter_map(|scope_element| match scope_element {
-            ScopeElement::InnerScope(inner_scope) => create_sum(inner_scope, true).ok(),
-            ScopeElement::Token(token) => match token {
-                Token::Value(value) => Some(Node::Value(value)),
-                Token::Variable(variable) => Some(Node::Variable(variable)),
-                _ => None,
-            }
-        })
-        .next()
-        .ok_or(String::from("Missing value or variable"))?;
+    let right = create_fn(right_scope)?;
     if operator.is_none() {
         Ok(right)
     } else {
@@ -407,7 +557,40 @@ fn create_exp(scope: Vec<ScopeElement>) -> Result<Node, String> {
             Err("Trailing operator".into())
         } else {
             let left = create_exp(left_scope)?;
-            Ok(Node::Operation(Operation::new(operator.unwrap(), left, right)))
+            Ok(Node::Operation(Operation::new(
+                operator.unwrap(),
+                left,
+                right,
+            )))
         }
+    }
+}
+
+fn create_fn(scope: Vec<ScopeElement>) -> Result<Node, String> {
+    let mut argument = None;
+
+    for scope_element in scope {
+        match argument {
+            None => argument = match scope_element {
+                ScopeElement::InnerScope(inner_scope) => Some(create_sum(inner_scope, true)?),
+                ScopeElement::Token(token) => match token {
+                    Token::Value(value) => Some(Node::Value(value)),
+                    Token::Variable(variable) => Some(Node::Variable(variable)),
+                    _ => return Err("Unexpected error".into()),
+                },
+            },
+            Some(argument_node) => match scope_element {
+                ScopeElement::Token(Token::Function(function)) => {
+                    argument = Some(Node::Function(FunctionCall {
+                        function, argument: Box::new(argument_node) }))
+                },
+                _ => return Err("Expected function call".into()),
+            }
+        }
+    }
+
+    match argument {
+        None => Err("Value or variable expected".into()),
+        Some(argument) => Ok(argument)
     }
 }

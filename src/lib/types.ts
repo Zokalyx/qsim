@@ -9,6 +9,7 @@ export interface Function {
     sketching: boolean,
     formula_error: string,
     datapoints: Datapoints | null,
+    show_mean: boolean,
 }
 export interface Bounds {
     position: {
@@ -46,6 +47,15 @@ export class Datapoints {
             let x = (datapoint.x - left) * width / (right - left)
             let y = -(datapoint.y - top) * height / (top - bottom)
             return `${x} ${y}`}).join(" ")
+    }
+
+    get_mean(): number {
+        const total = this.values
+            .map(value => value.y)
+            .reduce((partialSum, a) => partialSum + a, 0)
+        return this.values
+            .map(value => value.x * value.y / total)
+            .reduce((partialSum, a) => partialSum + a, 0)
     }
 }
 export interface Datapoint {

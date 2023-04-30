@@ -3,7 +3,12 @@
     import { type Function, Datapoints, type Bounds } from '$lib/types'
     import { FunctionMode } from '$lib/types'
     import type { Writable } from 'svelte/store'
+	import { onMount } from 'svelte';
+    onMount(() => {
+        compute_formula()
+    })
 
+    export let N: number
     export let bounds: Bounds
     export let fn: Writable<Function>
 
@@ -17,7 +22,8 @@
                 formula: $fn.formula,
                 start: bounds.position.min,
                 end: bounds.position.max,
-                resolution: 100,
+                resolution: N,
+                normalize: $fn.name === "Wavefunction",
             }) as Datapoints).values)
     }
 </script>
