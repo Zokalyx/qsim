@@ -65,7 +65,8 @@ fn main() {
             compute_formula,
             simulate,
             get_eigenvector,
-            evolve
+            evolve,
+            restart
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -141,32 +142,56 @@ fn get_eigenvector(
 
 #[tauri::command]
 fn simulate(
-    potential: &str,
-    wavefunction: &str,
+    potentialFormula: &str,
+    potentialDatapoints: Datapoints,
+    usePotentialFormula: bool,
+    wavefunctionFormula: &str,
+    wavefunctionDatapoints: Datapoints,
+    useWavefunctionFormula: bool,
     start: f32,
     end: f32,
     resolution: u32,
     state: State<ExperimentState>,
     momentum: f32,
 ) -> bool {
-    let potential = Formula::new(potential);
-    let potential = if let Ok(formula) = potential {
-        Vector::from(formula.get_vector(start, end, resolution))
+    let potential = if usePotentialFormula {
+        let potential = Formula::new(potentialFormula);
+        if let Ok(formula) = potential {
+            Vector::from(formula.get_vector(start, end, resolution))
+        } else {
+            return false;
+        }
     } else {
-        return false;
+        Vector::from(potentialDatapoints.values.iter().map(|d| Complex::from(d.y)).collect::<Vec<Complex>>())
     };
 
-    let wavefunction = Formula::new(wavefunction);
-    let mean_momentum = Formula::complex_phase(-momentum);
-    let wavefunction = if let Ok(formula) = wavefunction {
-        let formula = formula.adjoin(mean_momentum, formula::Operator::Multiplication);
-        dbg!(&formula);
-        let mut wavefunction = Vector::from(formula.get_vector(start, end, resolution));
-        wavefunction.normalize();
-        wavefunction
+    
+    let mean_momentum = Formula::complex_phase(momentum);
+    let mut wavefunction = if useWavefunctionFormula {
+        if let Ok(formula) = Formula::new(wavefunctionFormula) {
+            let formula = formula.adjoin(mean_momentum, formula::Operator::Multiplication);
+            let mut wavefunction = Vector::from(formula.get_vector(start, end, resolution));
+            wavefunction
+        } else {
+            return false;
+        }
     } else {
-        return false;
+        let mut mean_momentum_evaluated = vec![Complex::zero(); wavefunctionDatapoints.values.len()];
+        for i in 0..wavefunctionDatapoints.values.len() {
+            if let Ok(value) = mean_momentum.evaluate_complex(Complex::from(wavefunctionDatapoints.values[i].x)) {
+                mean_momentum_evaluated[i] = value;
+            } else {
+                return false
+            }
+        }
+
+        Vector::from(wavefunctionDatapoints.values
+            .iter()
+            .enumerate()
+            .map(|(i, d)| Complex::from(d.y) * mean_momentum_evaluated[i])
+            .collect::<Vec<Complex>>())
     };
+    wavefunction.normalize();
 
     let hamiltonian = hamiltonian3(&potential);
     let eigensolutions = hamiltonian.symmetric_eigen();
@@ -213,6 +238,12 @@ fn simulate(
 }
 
 #[tauri::command]
+fn restart(state: State<ExperimentState>) {
+    let mut data = state.state.lock().unwrap();
+    *data = None;
+}
+
+#[tauri::command]
 fn evolve(time: f32, state: State<ExperimentState>, start: f32, end: f32) -> Datapoints {
     let data = state.state.lock().unwrap();
 
@@ -230,7 +261,7 @@ fn evolve(time: f32, state: State<ExperimentState>, start: f32, end: f32) -> Dat
                 result.add(
                     &eivec.scaled_by(
                         c * Complex::from(std::f32::consts::E)
-                            .powf(&(eival.times_i() * Complex::from(time))),
+                            .powf(&(-eival.times_i() * Complex::from(time))),
                     ),
                 );
             }
@@ -246,17 +277,22 @@ fn evolve(time: f32, state: State<ExperimentState>, start: f32, end: f32) -> Dat
     }
 }
 
+/*
 #[tauri::command]
 fn simulate2(
-    potential: &str,
-    wavefunction: &str,
+    potential_formula: &str,
+    potential_datapoints: Datapoints,
+    use_potential_formula: bool,
+    wavefunction_formula: &str,
+    wavefunction_datapoints: Datapoints,
+    use_wavefunction_formula: bool,
     start: f32,
     end: f32,
     resolution: u32,
     state: State<ExperimentState>,
     mean_momentum: f32,
 ) -> bool {
-    let potential = Formula::new(potential);
+    let potential = Formula::new(potential_formula);
     let potential = if let Ok(formula) = potential {
         Vector::from(formula.get_vector(start, end, resolution))
     } else {
@@ -264,8 +300,8 @@ fn simulate2(
     };
 
     let mean_momentum = Formula::complex_phase(mean_momentum);
-    let wavefunction = Formula::new(wavefunction);
-    let wavefunction = if let Ok(formula) = wavefunction {
+    let wavefunction = Formula::new(wavefunction_formula);
+    if let Ok(formula) = wavefunction {
         let formula = formula.adjoin(mean_momentum, formula::Operator::Multiplication);
         let mut wavefunction = Vector::from(formula.get_vector(start, end, resolution));
         wavefunction.normalize();
@@ -326,6 +362,7 @@ fn simulate2(
 
     true
 }
+*/
 
 fn hamiltonian(potential: &Vector) -> m {
     // http://facweb1.redlands.edu/fac/eric_hill/Phys341/Computation/Comp%201%20Setting%20up%20the%20discrete%20Schr%C3%B6dinger%20equation.pdf

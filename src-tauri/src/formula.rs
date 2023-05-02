@@ -1,6 +1,6 @@
 use super::complex::Complex;
 use nom::{branch, character, combinator, multi, number, IResult, bytes};
-use std::collections::HashMap;
+use std::{collections::HashMap, hash::Hash};
 
 #[derive(Debug, Clone)]
 pub enum Operator {
@@ -189,9 +189,10 @@ impl Formula {
         for i in 0..length {
             let x = start + (i as f32) * step;
             let j = Complex::iunit();
-            let mut variables = HashMap::from([
+            let variables = HashMap::from([
                 ('x', Complex::from(x)),
-                ('i', j)
+                ('i', j),
+                ('e', Complex::from(std::f32::consts::E))
             ]);
             values.push(self.evaluate_multivariable(&variables).unwrap_or(Complex::zero()))
         }
@@ -206,6 +207,15 @@ impl Formula {
 
     pub fn evaluate(&self, input: Complex) -> Result<Complex, String> {
         self.root.evaluate(input)
+    }
+
+    pub fn evaluate_complex(&self, input: Complex) -> Result<Complex, String> {
+        let variables = HashMap::from([
+            ('x', input),
+            ('i', Complex::iunit()),
+            ('e', Complex::from(std::f32::consts::E))
+        ]);
+        self.evaluate_multivariable(&variables)
     }
 
     pub fn evaluate_multivariable(
@@ -368,7 +378,11 @@ fn implicit_multiplication(scope: Vec<ScopeElement>) -> Vec<ScopeElement> {
     let mut last = None;
 
     for (i, scope_element) in scope.clone().into_iter().enumerate() {
-        if let Some(last_scope_element) = last {
+        if let Some(mut last_scope_element) = last {
+            if let ScopeElement::InnerScope(inner_scope) = last_scope_element {
+                last_scope_element = ScopeElement::InnerScope(implicit_multiplication(inner_scope));
+            }
+
             if let ScopeElement::Token(Token::Value(_) | Token::Variable(_))
             | ScopeElement::InnerScope(_) = last_scope_element
             {
@@ -403,9 +417,13 @@ fn implicit_multiplication(scope: Vec<ScopeElement>) -> Vec<ScopeElement> {
                         ]);
                         last = Some(inner_scope);
                     }
+                } else if let ScopeElement::Token(Token::Function(_)) = scope_element {
+                    new_scope.push(last_scope_element);
+                    new_scope.push(ScopeElement::Token(Token::Operator(Operator::Multiplication)));
+                    last = Some(scope_element);
                 } else {
                     if let ScopeElement::Token(Token::Whitespace) = last_scope_element {
-                    
+                        // ---
                     } else {
                         new_scope.push(last_scope_element);
                     }
@@ -424,8 +442,15 @@ fn implicit_multiplication(scope: Vec<ScopeElement>) -> Vec<ScopeElement> {
         }
     }
 
-    if let Some(scope_element) = last {
-        new_scope.push(scope_element);
+    if let Some(mut scope_element) = last {
+        if let ScopeElement::InnerScope(inner_scope) = scope_element {
+            scope_element = ScopeElement::InnerScope(implicit_multiplication(inner_scope));
+        }
+        if let ScopeElement::Token(Token::Whitespace) = scope_element {
+            // ---
+        } else {
+            new_scope.push(scope_element);
+        }
     }
 
     new_scope

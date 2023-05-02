@@ -1,4 +1,4 @@
-use std::{ops::{Add, Sub, Mul, Div}, iter::Sum};
+use std::{ops::{Add, Sub, Mul, Div, Neg}, iter::Sum};
 use std::f32::consts::E;
 
 #[derive(Copy, Clone, PartialEq, Debug)]
@@ -182,6 +182,16 @@ impl From<f32> for Complex {
         Self {
             real: f,
             imag: 0.0
+        }
+    }
+}
+impl Neg for Complex {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        Self {
+            real: -self.real,
+            imag: -self.imag
         }
     }
 }

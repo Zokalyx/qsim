@@ -10,16 +10,18 @@ export interface Function {
     formula_error: string,
     datapoints: Datapoints | null,
     show_mean: boolean,
+    scale: {
+        top: number,
+        bottom: number,
+    },
+    visible: boolean,
+    complex_phase: number | null,
+    readonly: boolean,
+    n: number | null,
 }
 export interface Bounds {
-    position: {
-        min: number,
-        max: number,
-    },
-    amplitude: {
-        min: number,
-        max: number,
-    },
+    left: number,
+    right: number,
 }
 // Wrapper required for serde serialization/deserialization
 export class Datapoints {
@@ -29,16 +31,16 @@ export class Datapoints {
         this.values = values
     }
 
-    get_path(width: number, height: number, bounds: Bounds): string {
+    get_path(width: number, height: number, bounds: Bounds, scale: { top: number, bottom: number }): string {
         // Maps selected bounds to screen size
-        let left = bounds.position.min  // -> 0
-        let right = bounds.position.max  // -> WIDTH
+        let left = bounds.left  // -> 0
+        let right = bounds.right  // -> WIDTH
         // "Slope" of WIDTH / (right - left)
         // "Root" at left
         // Result: (x - left) * WIDTH / (right - left)
 
-        let bottom = bounds.amplitude.min  // -> HEIGHT
-        let top = bounds.amplitude.max  // --> 0
+        let bottom = scale.bottom  // -> HEIGHT
+        let top = scale.top  // --> 0
         // "Slope" of -HEIGHT / (top - bottom)
         // "Root" at top
         // Result: - (x - top) * HEIGHT / (top - bottom)
