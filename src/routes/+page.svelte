@@ -9,6 +9,7 @@
     import { onMount } from 'svelte';
 	import alert from "$lib/static/alert-circle-svgrepo-com.svg";
 	import Tooltip from '../lib/static/Tooltip.svelte';
+	import { open } from '@tauri-apps/api/shell';
 
     let N = 100
 	let max_N = 200
@@ -122,4 +123,6 @@
 </div>
 
 <Graph {potential} {wavefunction} {eigenfunction} {bounds} {currently_drawing} {N} {playing} {time} on:eigenpls={get_eigenvector} on:interrupt={interrupt} {parametersChanged}/>
+<br>
+<span class="text-zinc-500 hover:cursor-pointer" on:click={() => open("https://github.com/zokalyx/qsim")}>github.com/zokalyx/qsim</span>
 </div>
