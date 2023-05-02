@@ -25,7 +25,7 @@
 		name: 'Potential',
 		mode: FunctionMode.Formula,
 		sketching: false,
-		formula: '0.1 * x^2',
+		formula: '0',
 		formula_error: '',
 		datapoints: null,
 		show_mean: false,
@@ -42,7 +42,7 @@
 		name: 'Wavefunction',
 		mode: FunctionMode.Formula,
 		sketching: false,
-		formula: 'e^(-x^2)',
+		formula: 'exp( -(x+3)^2 )',
 		formula_error: '',
 		datapoints: null,
 		show_mean: true,
@@ -51,7 +51,7 @@
 			bottom: -1.5
 		},
 		visible: true,
-		complex_phase: 3,
+		complex_phase: 4,
 		readonly: false,
 		n: null
 	});
@@ -67,7 +67,7 @@
 			top: 1,
 			bottom: -1,
 		},
-		visible: true,
+		visible: false,
 		complex_phase: null,
 		readonly: true,
 		n: 0,

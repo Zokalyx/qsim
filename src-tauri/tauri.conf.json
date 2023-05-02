@@ -7,8 +7,8 @@
     "distDir": "../build"
   },
   "package": {
-    "productName": "quantum2",
-    "version": "0.1.0"
+    "productName": "qsim",
+    "version": "1.0.0"
   },
   "tauri": {
     "allowlist": {
@@ -29,7 +29,7 @@
         "icons/icon.icns",
         "icons/icon.ico"
       ],
-      "identifier": "quantum2",
+      "identifier": "qsim",
       "longDescription": "",
       "macOS": {
         "entitlements": null,
@@ -57,7 +57,7 @@
       {
         "fullscreen": false,
         "resizable": true,
-        "title": "q2",
+        "title": "qsim - schrödinger equation solver",
         "maximized": true
       }
     ]
