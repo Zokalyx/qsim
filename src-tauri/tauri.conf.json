@@ -59,7 +59,7 @@
       {
         "fullscreen": false,
         "resizable": true,
-        "title": "qsim - schrödinger equation solver",
+        "title": "qsim 1.0.0",
         "maximized": true
       }
     ]
