@@ -70,10 +70,10 @@
     <div class="flex space-x-3 items-center">
         <select bind:value={$fn.mode} on:change={() => $fn.mode === FunctionMode.Formula ? compute_formula() : null} class="border-2 border-black h-10 rounded-md px-2 py-1 focus:outline-none focus:bg-slate-50 bg-slate-300 transition-colors duration-300 text-slate-900">
             <option value={FunctionMode.Formula}>
-                Formula
+                Fórmula
             </option>
             <option value={FunctionMode.Drawing}>
-                Drawing
+                Dibujo
             </option>
         </select>
 
@@ -87,11 +87,11 @@
         {:else if $fn.mode === FunctionMode.Drawing}
             {#if $fn !== $currently_drawing}
             <button on:click={start_drawing} class="border-2 border-black rounded-md p-2 text-slate-900 bg-slate-300 focus:bg-slate-50 transition-colors duration-300">
-                Draw
+                Dibujar
             </button>
             {:else}
             <button on:click={stop_drawing} class="border-2 border-black rounded-md p-2 text-slate-900 bg-slate-300 focus:bg-slate-50 transition-colors duration-300">
-                Stop
+                Terminar
             </button>
             {/if}
         {/if}
@@ -100,14 +100,14 @@
 
     {#if $fn.n !== null}
     <div class="flex space-x-3 items-center">
-        <span>Quantum number: </span>
+        <span>Número cuántico: </span>
         <input type="range" bind:value={$fn.n} on:input={dispatch_update} min="0" max="{N/2}"/>
         <span>{$fn.n}</span>
     </div>
     {/if}
 
     <div class="flex space-x-3 items-center">
-        <span>Scale:</span>
+        <span>Escala:</span>
         <input type="number" bind:value={$fn.scale.bottom} class="border-2 w-20 border-black h-10 rounded-md px-2 py-1 focus:outline-none focus:bg-slate-50 bg-slate-300 transition-colors duration-300 text-slate-900">
         <span>-</span>
         <input type="number" bind:value={$fn.scale.top} class="border-2 w-20 border-black h-10 rounded-md px-2 py-1 focus:outline-none focus:bg-slate-50 bg-slate-300 transition-colors duration-300 text-slate-900">
@@ -115,9 +115,9 @@
 
     {#if $fn.complex_phase !== null}
     <div class="flex space-x-3 items-center">
-        <span>Phase factor:</span>
+        <span>Factor de fase:</span>
         <input min="-10" max="10" type="number" bind:value={$fn.complex_phase} on:input={() => {dispatch_update(); compute_formula();}} class="border-2 w-20 border-black h-10 rounded-md px-2 py-1 focus:outline-none focus:bg-slate-50 bg-slate-300 transition-colors duration-300 text-slate-900">
-        <Tooltip title="Complex phase factor associated with momentum">
+        <Tooltip title="Factor de fase asociado al momento">
             <img alt="help" src="{help}" class="w-7 h-7"/>
         </Tooltip>
     </div>

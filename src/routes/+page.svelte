@@ -23,7 +23,7 @@
 		right: 10,
 	};
 	let potential: Writable<Function> = writable({
-		name: 'Potential',
+		name: 'Potencial',
 		mode: FunctionMode.Formula,
 		sketching: false,
 		formula: '0',
@@ -40,7 +40,7 @@
 		n: null,
 	});
 	let wavefunction: Writable<Function> = writable({
-		name: 'Wavefunction',
+		name: 'Función de onda',
 		mode: FunctionMode.Formula,
 		sketching: false,
 		formula: 'exp( -(x+3)^2 )',
@@ -57,7 +57,7 @@
 		n: null
 	});
 	let eigenfunction: Writable<Function> = writable({
-		name: 'Eigenfunction',
+		name: 'Estado estacionario',
 		mode: FunctionMode.Formula,
 		sketching: false,
 		formula: '',
@@ -96,7 +96,7 @@
 <div class="flex flex-col py-10 items-center">
 <div class="flex justify-stretch">
 	<div class="border-2 border-black rounded-lg bg-zinc-700 ml-2 mt-2 p-3 flex flex-col space-y-3">
-		<h1 class="text-3xl text-slate-100 font-bold">Bounds</h1>
+		<h1 class="text-3xl text-slate-100 font-bold">Límites</h1>
 		<div>
 			<input type="number" bind:value={bounds.left} on:input={interrupt} class="border-2 w-20 border-black h-10 rounded-md px-2 py-1 focus:outline-none focus:bg-slate-50 bg-slate-300 transition-colors duration-300 text-slate-900"/>
 			-
@@ -107,10 +107,10 @@
 			<input type="number" bind:value={bounds.amplitude.max} /-->
 		</div>
 		<div class="flex items-center space-x-3">
-			<span>Divisions:</span>
+			<span>Divisiones:</span>
 			<input type="number" bind:value={N} class="border-2 w-20 border-black h-10 rounded-md px-2 py-1 focus:outline-none focus:bg-slate-50 bg-slate-300 transition-colors duration-300 text-slate-900"/>
 			{#if N >= max_N}
-			<Tooltip title="Values above ~{max_N} may lag the program">
+			<Tooltip title="Valores por encima de ~{max_N} pueden causar lag">
 				<img alt="error" src="{alert}" class="w-7 h-7"/>
 			</Tooltip>
 			{/if}

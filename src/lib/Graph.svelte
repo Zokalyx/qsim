@@ -168,27 +168,27 @@
     <div class="flex flex-col space-y-3">
         <div class="flex space-x-3 items-center">
         <h1 class="text-3xl text-zinc-100 font-bold">
-        Controls
+        Controles
         </h1>
         </div>
 
         <div class="flex space-x-3 items-center">
             {#if !$playing}
             <button disabled="{!error_free}" on:click={simulate} class="border-2 border-black rounded-md p-2 text-zinc-900 bg-zinc-300 focus:bg-zinc-50 transition-colors duration-300 disabled:text-zinc-500">
-            Play
+            Simular
             </button>
             {:else}
             <button on:click={toggle_play} class="border-2 border-black rounded-md p-2 text-zinc-900 bg-zinc-300 focus:bg-zinc-50 transition-colors duration-300 disabled:text-zinc-500">
-            Pause
+            Pausar
             </button>
             <button on:click={reset} class="border-2 border-black rounded-md p-2 text-zinc-900 bg-zinc-300 focus:bg-zinc-50 transition-colors duration-300">
-            Reset
+            Reiniciar
             </button>
             {/if}
         </div>
 
         <div class="flex space-x-3 items-center">
-        <span>Speed</span>
+        <span>Velocidad</span>
         <input type="range" min="0.01" max="1.0" step="0.01" bind:value={speed}>
         </div>
         </div>
