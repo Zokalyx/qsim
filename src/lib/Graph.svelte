@@ -23,20 +23,30 @@
     let svg: Element
     let helper = 1
     let speed = 0.10
+    let lastFrameTimestamp: number | null = null
 
     $: error_free = (!$wavefunction.formula_error || $wavefunction.mode === FunctionMode.Drawing) && (!$potential.formula_error || $potential.mode === FunctionMode.Drawing)
 
     const dispatch = createEventDispatcher()
 
     onMount(() => {
-        const interval = setInterval(() => {
+        let loop = requestAnimationFrame(function update() {
+            const current = new Date().getTime()
+            if (lastFrameTimestamp === null) {
+                lastFrameTimestamp = current
+            }
+            const elapsed = current - lastFrameTimestamp
+            lastFrameTimestamp = current
+
             if ($playing) {
-                $time += speed
+                $time += speed * elapsed / 20
                 evolve()
             }
-        }, 1000 / 75)
 
-        return () => clearInterval(interval)
+            loop = requestAnimationFrame(update)
+        })
+
+        return () => cancelAnimationFrame(loop)
     })
 
     async function evolve() {
