@@ -124,5 +124,5 @@
 
 <Graph {potential} {wavefunction} {eigenfunction} {bounds} {currently_drawing} {N} {playing} {time} on:eigenpls={get_eigenvector} on:interrupt={interrupt} {parametersChanged}/>
 <br>
-<span class="text-zinc-500 hover:cursor-pointer" on:click={() => open("https://github.com/zokalyx/qsim")}>github.com/zokalyx/qsim</span>
+<span class="text-zinc-500 hover:cursor-pointer hover:text-zinc-300 transition-colors duration-300" on:click={() => open("https://github.com/zokalyx/qsim")}>github.com/zokalyx/qsim</span>
 </div>
